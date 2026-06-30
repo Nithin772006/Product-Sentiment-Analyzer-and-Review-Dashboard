@@ -1,0 +1,123 @@
+/* ── src/styles/index.css ───────────────────────────────────────────────────
+   Global styles + Tailwind directives.
+   Import this file once in main.jsx.
+──────────────────────────────────────────────────────────────────────────── */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS Custom Properties (design tokens) ─────────────────────────────── */
+:root {
+  --color-bg-primary:    #0f1117;
+  --color-bg-secondary:  #161b27;
+  --color-bg-card:       #1c2333;
+  --color-bg-card-hover: #212840;
+  --color-border:        rgba(255, 255, 255, 0.08);
+  --color-text-primary:  #e8eaf6;
+  --color-text-muted:    #8892b0;
+  --color-accent-blue:   #3361ff;
+  --color-accent-orange: #f97316;
+  --color-positive:      #22c55e;
+  --color-negative:      #ef4444;
+  --color-neutral:       #f59e0b;
+  --radius-card:         1rem;
+  --shadow-card:         0 4px 24px rgba(0, 0, 0, 0.3);
+  --transition-base:     150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Base resets ───────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar styling ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
+/* ── Selection ─────────────────────────────────────────────────────────── */
+::selection {
+  background: rgba(51, 97, 255, 0.3);
+  color: #fff;
+}
+
+/* ── Utility classes (reusable via @layer components) ──────────────────── */
+@layer components {
+  .card {
+    @apply rounded-2xl border p-6 transition-all duration-200;
+    background-color: var(--color-bg-card);
+    border-color: var(--color-border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .card:hover {
+    background-color: var(--color-bg-card-hover);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center gap-2 rounded-xl px-5 py-2.5
+           text-sm font-semibold text-white transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-offset-2;
+    background-color: var(--color-accent-blue);
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+  }
+
+  .badge-positive {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: rgba(34, 197, 94, 0.15);
+    color: var(--color-positive);
+  }
+
+  .badge-negative {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--color-negative);
+  }
+
+  .badge-neutral {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--color-neutral);
+  }
+
+  .page-title {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  .section-title {
+    @apply text-xl font-semibold;
+  }
+
+  .text-muted {
+    color: var(--color-text-muted);
+  }
+}

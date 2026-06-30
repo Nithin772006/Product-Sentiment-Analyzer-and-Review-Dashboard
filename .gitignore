@@ -1,0 +1,110 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pytype
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ─── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+dist/
+dist-ssr/
+*.local
+
+# Vite
+frontend/.vite/
+
+# ─── IDEs & Editors ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Environment & Secrets ────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+backend/logs/
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+.docker/
+
+# ─── Selenium / Browser Drivers ───────────────────────────────────────────────
+drivers/
+chromedriver*
+geckodriver*
+
+# ─── Data & Exports ───────────────────────────────────────────────────────────
+*.csv
+*.json
+data/
+exports/
+
+# Scraper cache/temp
+backend/browser_profile/
+backend/*.html
+backend/*.png
