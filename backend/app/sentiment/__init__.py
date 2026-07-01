@@ -12,7 +12,6 @@ from app.sentiment.wordcloud_generator import WordCloudGenerator
 from app.sentiment.statistics import SentimentStatsCompiler
 from app.sentiment.processor import SentimentBatchProcessor
 from app.sentiment.scheduler import SentimentScheduler
-from app.sentiment.evaluation import SentimentEvaluator
 
 __all__ = [
     "SentimentAnalyzer",
@@ -26,3 +25,11 @@ __all__ = [
     "SentimentScheduler",
     "SentimentEvaluator",
 ]
+
+
+def __getattr__(name: str):
+    if name == "SentimentEvaluator":
+        from app.sentiment.evaluation import SentimentEvaluator
+
+        return SentimentEvaluator
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

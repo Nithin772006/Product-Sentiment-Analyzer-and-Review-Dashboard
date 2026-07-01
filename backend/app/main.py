@@ -130,6 +130,13 @@ def create_app() -> FastAPI:
             "version": settings.app_version,
             "environment": settings.app_env,
             "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "dependencies": {
+                "mongodb": {
+                    "connected": db_ok,
+                    "name": settings.mongodb_db_name,
+                    "info": db_info,
+                },
+            },
             "database": {
                 "connected": db_ok,
                 "name": settings.mongodb_db_name,

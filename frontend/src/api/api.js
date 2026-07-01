@@ -93,7 +93,23 @@ export const apiService = {
   getDashboardKeywords: (limit = 15) =>
     api.get("/analytics/dashboard/keywords", { params: { limit } }),
 
-  // ── Export URLs (returned directly as absolute paths) ──────────────────────
+  // ── Export / Report Downloads ──────────────────────────────────────────────
+  // Uses a direct axios call (NOT the response-interceptor instance) so we
+  // get the raw AxiosResponse with blob data intact.
+  exportReport: (productId, format) => {
+    const formatMap = { csv: "csv", excel: "excel", pdf: "pdf" };
+    const path = `/reports/export/${formatMap[format]}/${productId}`;
+    const token = localStorage.getItem("token");
+    return axios.get(`${BASE_URL}${path}`, {
+      responseType: "blob",
+      timeout: 60_000,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  },
+
+  // Keep these for backward compatibility
   getExportCsvUrl: (id) => `${BASE_URL}/reports/export/csv/${id}`,
   getExportExcelUrl: (id) => `${BASE_URL}/reports/export/excel/${id}`,
   getExportPdfUrl: (id) => `${BASE_URL}/reports/export/pdf/${id}`,
