@@ -43,10 +43,19 @@ async def compile_export_data(product_id: str) -> list[dict]:
     rows = []
     for r in reviews:
         s = sentiment_map.get(r["id"], {})
+        
+        rd = r.get("review_date")
+        if hasattr(rd, "isoformat"):
+            rd_str = rd.isoformat()
+        elif rd:
+            rd_str = str(rd)
+        else:
+            rd_str = ""
+
         rows.append({
             "Reviewer": r.get("reviewer") or "Anonymous",
             "Rating": r.get("rating") or 5,
-            "Review Date": r.get("review_date").isoformat() if r.get("review_date") else "",
+            "Review Date": rd_str,
             "Verified Purchase": "Yes" if r.get("verified_purchase") else "No",
             "Source Platform": r.get("source", "Unknown").capitalize(),
             "Review Text": r.get("review_text", ""),
