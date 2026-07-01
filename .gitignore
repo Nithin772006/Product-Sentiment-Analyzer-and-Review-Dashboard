@@ -68,6 +68,8 @@ dist-ssr/
 
 # Vite
 frontend/.vite/
+.vercel/
+frontend/.vercel/
 
 # ─── IDEs & Editors ───────────────────────────────────────────────────────────
 .vscode/
