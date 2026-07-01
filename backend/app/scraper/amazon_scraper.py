@@ -7,6 +7,7 @@ Uses BaseScraper._fetch_soup() which delegates to ScraperManager (5-strategy cas
 from __future__ import annotations
 import re
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
 from app.scraper.base_scraper import BaseScraper
@@ -20,15 +21,25 @@ from app.utils.logger import logger
 _REVIEW_BLOCK_SELECTORS = [
     "div[data-hook='review']",
     "div[data-hook='reviewContainer']",
+    "div[id^='customer_review-']",
+    "div[id^='R'][data-hook]",
     "li[data-hook='review']",
 ]
 
 _REVIEW_BODY_SELECTORS = [
     "span[data-hook='review-body']",
+    "[data-hook='review-body'] span",
     "span[data-hook='cr-original-review-content']",
+    ".cr-original-review-content",
+    "div[data-hook='review-collapsed']",
+    "div[data-hook='review-expanded']",
+    "div[data-hook='review-text']",
     "div[data-hook='reviewText'] span",
     ".review-text-content span",
+    ".review-text-content",
     ".review-text span",
+    ".review-text",
+    ".review-data span",
     "div.a-expander-content span",
     "div[data-hook='review-body']",
 ]
@@ -61,6 +72,29 @@ _VERIFIED_SELECTORS = [
     "[data-hook='avp-badge-linkless']",
 ]
 
+_REVIEW_TITLE_SELECTORS = [
+    "a[data-hook='review-title'] span",
+    "span[data-hook='review-title'] span",
+    "a.review-title span",
+    ".review-title",
+]
+
+_REVIEW_UI_PATTERNS = [
+    r"brief content visible,?\s*double tap to read full content\.?",
+    r"double tap to read full content\.?",
+    r"tap to read full content\.?",
+    r"read more",
+    r"read full review",
+    r"see more",
+    r"continue reading",
+    r"read less",
+    r"show less",
+    r"show more",
+    r"full content not available",
+    r"click here to read",
+    r"the media could not be loaded\.?",
+]
+
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -74,17 +108,66 @@ def _extract_field(block, selectors: list, default: str = "") -> str:
     return default
 
 
+def _remove_amazon_review_ui(text: str) -> str:
+    cleaned = text
+    for pattern in _REVIEW_UI_PATTERNS:
+        cleaned = re.sub(pattern, " ", cleaned, flags=re.IGNORECASE)
+    return clean_review_text(cleaned)
+
+
+def _valid_review_text(text: str, min_len: int = 10) -> bool:
+    if not text or len(text) < min_len:
+        return False
+    lower = text.lower()
+    metadata_patterns = [
+        r"^\d(?:\.\d)?\s*out of\s*5\s*stars$",
+        r"^reviewed in .+ on .+$",
+        r"^verified purchase$",
+        r"^\d+ people found this helpful$",
+        r"^one person found this helpful$",
+        r"^helpful$",
+        r"^report$",
+    ]
+    return not any(re.search(pattern, lower) for pattern in metadata_patterns)
+
+
 def _extract_review_text(block) -> str:
     candidates = []
     for sel in _REVIEW_BODY_SELECTORS:
-        el = block.select_one(sel)
-        if el:
-            cleaned = clean_review_text(el.get_text(separator=" "))
-            if cleaned and not is_truncated_text(cleaned) and len(cleaned) >= 10:
+        for el in block.select(sel):
+            cleaned = _remove_amazon_review_ui(el.get_text(separator=" "))
+            if _valid_review_text(cleaned):
                 candidates.append(cleaned)
+
+    title = _remove_amazon_review_ui(_extract_field(block, _REVIEW_TITLE_SELECTORS))
+    if _valid_review_text(title):
+        candidates.append(title)
+        if candidates:
+            body = max(candidates, key=len)
+            if title.lower() not in body.lower():
+                merged = _remove_amazon_review_ui(f"{title}. {body}")
+                if _valid_review_text(merged):
+                    candidates.append(merged)
+
+    for el in block.find_all(["span", "div", "p"], recursive=True):
+        if el.find(["span", "div", "p"]):
+            continue
+        cleaned = _remove_amazon_review_ui(el.get_text(separator=" "))
+        if _valid_review_text(cleaned, min_len=20) and not is_truncated_text(cleaned):
+            candidates.append(cleaned)
+
     if not candidates:
         return ""
     return max(candidates, key=len)
+
+
+def _find_review_blocks(soup: BeautifulSoup) -> List:
+    for sel in _REVIEW_BLOCK_SELECTORS:
+        blocks = soup.select(sel)
+        valid = [b for b in blocks if len(clean_text(b.get_text(separator=" "))) > 40]
+        if valid:
+            return valid
+    return []
 
 
 def _parse_review_block(block, review_url: str) -> Optional[Dict]:
@@ -122,9 +205,26 @@ def _parse_review_block(block, review_url: str) -> Optional[Dict]:
 class AmazonScraper(BaseScraper):
     platform = "amazon"
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._last_product_url: Optional[str] = None
+        self._last_product_soup: Optional[BeautifulSoup] = None
+
     def _extract_asin(self, url: str) -> Optional[str]:
         m = re.search(r"/(?:dp|gp/product|product-reviews|ASIN)/([A-Z0-9]{10})", url, re.IGNORECASE)
+        if not m:
+            m = re.search(r"[?&](?:asin|pd_rd_i)=([A-Z0-9]{10})", url, re.IGNORECASE)
         return m.group(1).upper() if m else None
+
+    def _build_reviews_url(self, url: str, asin: str, page_num: int) -> str:
+        parsed = urlparse(url)
+        host = parsed.netloc or "www.amazon.in"
+        if "amazon." not in host:
+            host = "www.amazon.in"
+        return (
+            f"https://{host}/product-reviews/{asin}/"
+            f"?pageNumber={page_num}&sortBy=recent"
+        )
 
     async def scrape_product_info(self, url: str) -> Dict:
         logger.info(f"[Amazon] Fetching product info: {url[:80]}")
@@ -133,6 +233,9 @@ class AmazonScraper(BaseScraper):
         if not soup:
             logger.error("[Amazon] Failed to fetch product page.")
             return self._empty_info(url)
+
+        self._last_product_url = url
+        self._last_product_soup = soup
 
         name_el = soup.find(id="productTitle")
         product_name = clean_text(name_el.text) if name_el else "Unknown Product"
@@ -179,11 +282,10 @@ class AmazonScraper(BaseScraper):
             logger.warning(f"[Amazon] Cannot extract ASIN from: {url}")
             return []
 
-        base_reviews_url = f"https://www.amazon.in/product-reviews/{asin}/"
         all_reviews: List[Dict] = []
 
         for page_num in range(1, max_pages + 1):
-            page_url = f"{base_reviews_url}?pageNumber={page_num}&sortBy=recent&filterByStar=all_stars&reviewerType=all_reviews"
+            page_url = self._build_reviews_url(url, asin, page_num)
             logger.info(f"[Amazon] Scraping reviews page {page_num}: {page_url[:80]}")
 
             soup = await self._fetch_soup(page_url)
@@ -191,11 +293,7 @@ class AmazonScraper(BaseScraper):
                 logger.warning(f"[Amazon] Failed to fetch review page {page_num}")
                 break
 
-            blocks = []
-            for sel in _REVIEW_BLOCK_SELECTORS:
-                blocks = soup.select(sel)
-                if blocks:
-                    break
+            blocks = _find_review_blocks(soup)
 
             if not blocks:
                 logger.info(f"[Amazon] No review blocks found on page {page_num}")
@@ -212,6 +310,22 @@ class AmazonScraper(BaseScraper):
 
             if not page_reviews:
                 break  # No more reviews
+
+        if not all_reviews:
+            fallback_soup = self._last_product_soup if self._last_product_url == url else None
+            if fallback_soup is None:
+                logger.info("[Amazon] Review pages yielded 0 reviews; fetching product page fallback")
+                fallback_soup = await self._fetch_soup(url)
+
+            if fallback_soup:
+                blocks = _find_review_blocks(fallback_soup)
+                fallback_reviews = []
+                for block in blocks[:20]:
+                    r = _parse_review_block(block, url)
+                    if r:
+                        fallback_reviews.append(r)
+                logger.info(f"[Amazon] Product page fallback extracted {len(fallback_reviews)} reviews")
+                all_reviews.extend(fallback_reviews)
 
         logger.info(f"[Amazon] Total reviews scraped: {len(all_reviews)}")
         return all_reviews

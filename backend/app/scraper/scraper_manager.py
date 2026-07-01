@@ -8,6 +8,7 @@ The scraper then parses the HTML with BeautifulSoup independently.
 from __future__ import annotations
 import asyncio
 import random
+import re
 import httpx
 from pathlib import Path
 from typing import Optional
@@ -194,7 +195,13 @@ def _is_blocked(html: str, platform: str) -> bool:
 
     # Amazon: sign-in/login page (could be large, must check content)
     if platform == "amazon":
-        if "<title>amazon sign-in</title>" in lower or "<title>sign-in</title>" in lower:
+        title_match = re.search(r"<title[^>]*>\s*([^<]+?)\s*</title>", lower)
+        title = title_match.group(1).strip() if title_match else ""
+        if "amazon sign-in" in title or title == "sign-in":
+            return True
+        if 'id="ap_login_form"' in lower or "name=\"signin\"" in lower:
+            return True
+        if "/ax/claim" in lower and "openid.return_to" in lower:
             return True
         if "enter the characters you see below" in lower:
             return True

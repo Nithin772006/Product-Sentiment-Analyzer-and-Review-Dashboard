@@ -15,8 +15,12 @@ from __future__ import annotations
 import unittest
 from datetime import datetime, timezone, timedelta
 
+from bs4 import BeautifulSoup
+
+from app.scraper.amazon_scraper import AmazonScraper, _extract_review_text, _find_review_blocks
 from app.scraper.review_parser import clean_text, parse_rating, parse_date
 from app.scraper.review_extractor import is_truncated_text, clean_review_text
+from app.scraper.scraper_manager import _is_blocked
 from app.scraper.scraper_service import ScraperService
 
 
@@ -97,6 +101,65 @@ class TestScraperService(unittest.TestCase):
         self.assertIsNone(
             self.service._detect_platform("https://www.google.com")
         )
+
+
+class TestAmazonScraper(unittest.TestCase):
+    """
+    Amazon-specific parser coverage. These tests do not exercise or modify
+    the Flipkart scraper.
+    """
+
+    def test_extract_asin_from_product_url_with_ref_query(self) -> None:
+        scraper = AmazonScraper()
+        url = (
+            "https://www.amazon.in/Samsung-Storage-Creative-Wireless-Charging/"
+            "dp/B0GL8H3XFN/ref=pd_sbs_d_sccl_1_3?pd_rd_i=B0GL8H3XFN&th=1"
+        )
+        self.assertEqual(scraper._extract_asin(url), "B0GL8H3XFN")
+
+    def test_extract_asin_from_query_fallback(self) -> None:
+        scraper = AmazonScraper()
+        url = "https://www.amazon.in/some-product?pd_rd_i=B0DSKL9MQ8"
+        self.assertEqual(scraper._extract_asin(url), "B0DSKL9MQ8")
+
+    def test_review_text_removes_amazon_ui_markers(self) -> None:
+        html = """
+        <div data-hook="review">
+            <span data-hook="review-body">
+                <span>Brief content visible, double tap to read full content.</span>
+                <span>This phone has excellent battery life and the camera is very reliable.</span>
+                <span>Read more</span>
+            </span>
+        </div>
+        """
+        block = BeautifulSoup(html, "lxml").select_one("div[data-hook='review']")
+        text = _extract_review_text(block)
+        self.assertIn("excellent battery life", text)
+        self.assertNotIn("double tap", text.lower())
+        self.assertNotIn("read more", text.lower())
+
+    def test_find_review_blocks_on_product_page(self) -> None:
+        html = """
+        <section id="cm-cr-dp-review-list">
+            <div id="customer_review-R123" data-hook="review">
+                <span class="a-profile-name">Nithin</span>
+                <i data-hook="review-star-rating"><span class="a-icon-alt">5.0 out of 5 stars</span></i>
+                <span data-hook="review-body"><span>Works smoothly and feels premium in daily use.</span></span>
+            </div>
+        </section>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        blocks = _find_review_blocks(soup)
+        self.assertEqual(len(blocks), 1)
+
+    def test_amazon_sign_in_page_is_blocked_with_title_attributes(self) -> None:
+        html = """
+        <html><head><title dir="ltr">Amazon Sign-In</title></head>
+        <body><form id="ap_login_form" action="/ax/claim">
+        <input type="hidden" name="openid.return_to" value="https://www.amazon.in/product-reviews/B0TEST1234/">
+        </form></body></html>
+        """
+        self.assertTrue(_is_blocked(html, "amazon"))
 
 
 class TestReviewExtraction(unittest.TestCase):
