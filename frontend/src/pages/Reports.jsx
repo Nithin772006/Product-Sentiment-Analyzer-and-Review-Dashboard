@@ -43,29 +43,11 @@ export default function Reports() {
     setDownloadError(null);
 
     try {
-      const urlMap = {
-        csv: apiService.getExportCsvUrl(productId),
-        excel: apiService.getExportExcelUrl(productId),
-        pdf: apiService.getExportPdfUrl(productId),
-      };
       const extMap = { csv: ".csv", excel: ".xlsx", pdf: ".pdf" };
-      const url = urlMap[format];
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(url, {
-        method: "GET",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          Accept: "*/*",
-        },
-      });
-
-      if (!response.ok) {
-        const detail = await response.text().catch(() => response.statusText);
-        throw new Error(`Server returned ${response.status}: ${detail}`);
-      }
-
-      const blob = await response.blob();
+      // Use the dedicated exportReport method which handles CORS and blob properly via axios
+      const response = await apiService.exportReport(productId, format);
+      const blob = response.data;
       const blobUrl = URL.createObjectURL(blob);
 
       const a = document.createElement("a");
