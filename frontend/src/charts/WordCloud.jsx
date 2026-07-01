@@ -5,8 +5,8 @@ export default function WordCloud({ productId }) {
   const [activeTab, setActiveTab] = useState("positive");
   const [imgError, setImgError] = useState(false);
 
-  // Serve image from backend local URL
-  const backendBaseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  // Serve image from backend static files, not the /api route prefix.
+  const backendBaseUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/api\/?$/, "");
   const imageUrl = `${backendBaseUrl}/static/wordclouds/${activeTab}_${productId}.png?t=${Date.now()}`; // append timestamp to bypass browser caching
 
   const handleTabChange = (tab) => {
