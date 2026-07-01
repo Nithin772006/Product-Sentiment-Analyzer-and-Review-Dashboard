@@ -17,76 +17,117 @@ from app.utils.logger import logger
 
 
 # ── Selectors ─────────────────────────────────────────────────────────────────
+# NOTE: Flipkart obfuscates class names (they change with each deploy).
+# We maintain a broad fallback list covering older and newer class patterns.
 
 _REVIEW_BLOCK_SELECTORS = [
+    # 2024–2025 class patterns
     "div.EKGNAx",
     "div.col.EPC75C",
+    "div.RcXBOT",          # newer variant
+    "div.ld75jY",          # newer variant
+    # Older patterns
     "div._27M2j0",
     "div.col._2w18Vo",
     "div._1w9jov",
+    # Generic data-id fallback
     "div[data-id]",
 ]
 
 _REVIEW_BODY_SELECTORS = [
+    # Newer Flipkart (2024–2025)
     "div.ZmyHe8", "div.t-yD1B", "div.qwjRZE", "div._6K-7Co",
-    "div._2xg67Y", "div.rQJvmz", "p.z9E0IG", "p._2-N8I7", "p.mD01Gk",
+    "div.row.gHqwXf",
+    "p.z9E0IG", "p.mD01Gk",
+    # Older patterns
+    "div._2xg67Y", "div.rQJvmz", "p._2-N8I7",
+    # Generic paragraph-in-block fallback
+    "div.col p",
 ]
 
 _REVIEW_TITLE_SELECTORS = [
     "p.iubmB6", "p._2-N1sw", "p._2xg67Y", "p.h4YBOe",
+    "p.YOhq3J",   # 2025 variant
 ]
 
 _REVIEWER_SELECTORS = [
-    "p._2Ns42I", "p._2sc77z", "p.X1KTa3", "span._3gEIov", "p.d1WRmK", "p._2NsDsY",
+    "p._2Ns42I", "p._2sc77z", "p.X1KTa3", "span._3gEIov",
+    "p.d1WRmK", "p._2NsDsY", "p.hTqXQ8", "span.MztJPv",
 ]
 
 _STAR_SELECTORS = [
     "div.XQD0XM", "div._3LWZlK", "div._1blX12", "div.ipCw58",
     "div._3c3wQu", "span._3LWZlK", "span.XQD0XM",
+    "div.iMbVha",   # 2025 variant
 ]
 
 _DATE_SELECTORS = [
-    "p._2sc77z", "span._3nPIwX", "p.X1KTa3", "span._1m4GG5", "p.HtbApb",
+    "p._2sc77z", "span._3nPIwX", "p.X1KTa3",
+    "span._1m4GG5", "p.HtbApb", "p.MztJPv",
 ]
 
 _HELPFUL_SELECTORS = [
     "span._1LcoK7", "span._3c3wQu", "span._2dB37Z", "span._1CKaXJ",
 ]
 
-_VERIFIED_SELECTORS = ["p._2mc13F", "span._1ve7Go"]
+_VERIFIED_SELECTORS = ["p._2mc13F", "span._1ve7Go", "span.WVb7SY"]
 
 _PRODUCT_NAME_SELECTORS = [
-    "span.VU-ZEz", "h1 span", "h1.yhB1nd", "span.B_NuCI", "div.B_NuCI", "h1",
+    "span.VU-ZEz", "h1 span", "h1.yhB1nd",
+    "span.B_NuCI", "div.B_NuCI", "h1",
 ]
 
 _RATING_SELECTORS = [
-    "div.ipCw58", "div.XQD0XM", "div._3LWZlK", "span.Y1HWO0",
-    "div._2d4LTz", "span._2_OkBI",
+    "div.ipCw58", "div.XQD0XM", "div._3LWZlK",
+    "span.Y1HWO0", "div._2d4LTz", "span._2_OkBI",
 ]
 
 _REVIEW_COUNT_SELECTORS = [
-    "span.W1Z0nJ", "span._2_R_DZ", "span.t-yD1B", "span._1YokD2",
-    "div._3Qzlid span", "span._13vcmD",
+    "span.W1Z0nJ", "span._2_R_DZ", "span.t-yD1B",
+    "span._1YokD2", "div._3Qzlid span", "span._13vcmD",
 ]
 
 _BREADCRUMB_SELECTORS = [
-    "div.r2C5H9 a", "div._3GIr1Z a", "div.aw9OGe a", "a._1LKTO3", "nav a",
+    "div.r2C5H9 a", "div._3GIr1Z a", "div.aw9OGe a",
+    "a._1LKTO3", "nav a",
 ]
 
 
 # ── Helper functions ──────────────────────────────────────────────────────────
 
 def _to_reviews_url(url: str) -> str:
+    """
+    Convert any Flipkart product URL to a product-reviews URL.
+    Handles all known URL patterns:
+      • /p/ITEM_ID?pid=...          → /product-reviews/ITEM_ID?pid=...
+      • /product-reviews/ITEM_ID   → unchanged
+      • legacy formats              → best-effort conversion
+    Always preserves the `pid` query parameter which is required by the
+    reviews endpoint to identify the exact product variant.
+    """
     parsed = urlparse(url)
     params = parse_qs(parsed.query, keep_blank_values=True)
-    clean_params = {k: v for k, v in params.items() if k == "pid"}
+
+    # Keep pid param (required) and marketplace (optional but harmless)
+    keep_keys = {"pid", "marketplace"}
+    clean_params = {k: v for k, v in params.items() if k in keep_keys}
     clean_query = urlencode(clean_params, doseq=True)
-    if "product-reviews" in parsed.path:
-        new_path = parsed.path
-    elif "/p/" in parsed.path:
-        new_path = parsed.path.replace("/p/", "/product-reviews/")
+
+    path = parsed.path
+    if "product-reviews" in path:
+        # Already a reviews URL — just clean up query string
+        new_path = path
+    elif "/p/" in path:
+        # e.g. /CATEGORY/PRODUCT_NAME/p/ITEM_ID → /CATEGORY/PRODUCT_NAME/product-reviews/ITEM_ID
+        new_path = path.replace("/p/", "/product-reviews/")
     else:
-        new_path = parsed.path
+        # Fallback: attempt to inject /product-reviews before last path segment
+        parts = path.rstrip("/").rsplit("/", 1)
+        if len(parts) == 2 and parts[1]:
+            new_path = f"{parts[0]}/product-reviews/{parts[1]}"
+        else:
+            new_path = path
+
     new_parsed = parsed._replace(path=new_path, query=clean_query, fragment="")
     return urlunparse(new_parsed)
 
@@ -102,21 +143,36 @@ def _extract_field(block, selectors: list, default: str = "") -> str:
 
 
 def _find_review_blocks(soup: BeautifulSoup) -> list:
-    # Try known class selectors first
+    """Find all individual review blocks in the parsed Flipkart page."""
+    # Try known class selectors first (ordered most-specific → generic)
     for sel in _REVIEW_BLOCK_SELECTORS:
         if sel == "div[data-id]":
             continue  # handled below
         blocks = soup.select(sel)
         valid = [b for b in blocks if len(b.get_text(strip=True)) > 20]
         if len(valid) >= 2:
+            logger.debug(f"[Flipkart] _find_review_blocks: matched '{sel}' → {len(valid)} blocks")
             return valid
 
-    # Fallback: data-id divs with enough content
+    # Fallback 1: data-id divs with enough content
     data_id_divs = [
         d for d in soup.find_all("div", attrs={"data-id": True})
         if len(d.get_text(strip=True)) > 30
     ]
-    return data_id_divs
+    if data_id_divs:
+        logger.debug(f"[Flipkart] _find_review_blocks: matched div[data-id] → {len(data_id_divs)} blocks")
+        return data_id_divs
+
+    # Fallback 2: any div/article that looks like a review block
+    # (contains a star rating digit AND significant text)
+    candidates = []
+    for div in soup.find_all(["div", "article"]):
+        text = div.get_text(strip=True)
+        if len(text) > 40 and re.search(r"[1-5]\s*(star|rating|★)", text.lower()):
+            candidates.append(div)
+    if candidates:
+        logger.debug(f"[Flipkart] _find_review_blocks: heuristic fallback → {len(candidates)} blocks")
+    return candidates
 
 
 def _extract_review_text(block) -> str:
@@ -285,20 +341,36 @@ class FlipkartScraper(BaseScraper):
     async def scrape_reviews(self, url: str, max_pages: int = 5) -> List[Dict]:
         reviews_base = _to_reviews_url(url)
         all_reviews: List[Dict] = []
+        logger.info(f"[Flipkart] Reviews base URL: {reviews_base[:120]}")
 
         for page_num in range(1, max_pages + 1):
-            join = "&" if "?" in reviews_base else "?"
-            page_url = f"{reviews_base}{join}page={page_num}"
-            logger.info(f"[Flipkart] Scraping reviews page {page_num}: {page_url[:80]}")
+            # Build the page URL — correctly append page param
+            if "?" in reviews_base:
+                page_url = f"{reviews_base}&page={page_num}"
+            else:
+                page_url = f"{reviews_base}?page={page_num}"
+
+            logger.info(f"[Flipkart] Scraping reviews page {page_num}: {page_url[:120]}")
 
             soup = await self._fetch_soup(page_url)
             if not soup:
                 logger.warning(f"[Flipkart] Failed to fetch review page {page_num}")
-                break
+                if page_num == 1:
+                    # Try once more with the base URL (no page param) on first page
+                    logger.info("[Flipkart] Retrying page 1 with base reviews URL...")
+                    soup = await self._fetch_soup(reviews_base)
+                if not soup:
+                    break
 
             blocks = _find_review_blocks(soup)
             if not blocks:
                 logger.info(f"[Flipkart] No review blocks found on page {page_num}")
+                if page_num == 1:
+                    # Log the page title to help debug
+                    title_el = soup.find("title")
+                    logger.warning(
+                        f"[Flipkart] Page title: {title_el.get_text() if title_el else 'N/A'}"
+                    )
                 break
 
             page_reviews = []

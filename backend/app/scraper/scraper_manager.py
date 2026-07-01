@@ -214,9 +214,19 @@ def _is_blocked(html: str, platform: str) -> bool:
 
     # Flipkart: homepage redirect or login prompt
     if platform == "flipkart":
-        if "buy products online at best price" in lower and len(html) < 200000:
+        # Home-page redirect (no review content) — only flag if truly a redirect
+        if "buy products online at best price" in lower and "product-reviews" not in lower and "rating" not in lower:
             return True
-        if "login" in lower[:3000] and "flipkart" in lower[:3000]:
+        # Login/auth wall: only block if the page has NO review-related content at all.
+        # Every Flipkart page has "login" in the nav — so we must confirm there are no
+        # reviews before treating this as a login redirect.
+        has_review_content = any(
+            kw in lower for kw in [
+                "review", "rating", "verified buyer", "certified buyer",
+                "read more", "helpful", "EKGNAx", "col.EPC75C",
+            ]
+        )
+        if not has_review_content and "login" in lower[:2000]:
             return True
 
     # Suspiciously small pages are almost always bot-block pages

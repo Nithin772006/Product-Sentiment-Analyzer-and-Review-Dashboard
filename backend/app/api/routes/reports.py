@@ -75,15 +75,15 @@ async def export_csv(
         raise HTTPException(status_code=400, detail="No reviews available to export")
 
     df = pd.DataFrame(data)
-    stream = io.StringIO()
-    df.to_csv(stream, index=False)
-    
-    response = StreamingResponse(
-        iter([stream.getvalue()]),
-        media_type="text/csv"
-    )
+    csv_bytes = df.to_csv(index=False).encode("utf-8")
+
     filename = f"Reviews_Report_{product_id}.csv"
-    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response = StreamingResponse(
+        iter([csv_bytes]),
+        media_type="text/csv; charset=utf-8"
+    )
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Content-Length"] = str(len(csv_bytes))
     return response
 
 
@@ -102,19 +102,21 @@ async def export_excel(
         raise HTTPException(status_code=400, detail="No reviews available to export")
 
     df = pd.DataFrame(data)
-    
+
     # Write to memory bytes buffer
     stream = io.BytesIO()
     with pd.ExcelWriter(stream, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Reviews Data", index=False)
-    
+
     stream.seek(0)
+    excel_bytes = stream.read()
+    filename = f"Reviews_Report_{product_id}.xlsx"
     response = StreamingResponse(
-        stream,
+        iter([excel_bytes]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    filename = f"Reviews_Report_{product_id}.xlsx"
-    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Content-Length"] = str(len(excel_bytes))
     return response
 
 
@@ -257,11 +259,13 @@ async def export_pdf(
     # Build document
     doc.build(elements)
     pdf_buffer.seek(0)
+    pdf_bytes = pdf_buffer.read()
 
+    filename = f"Sentiment_Report_{product_id}.pdf"
     response = StreamingResponse(
-        pdf_buffer,
+        iter([pdf_bytes]),
         media_type="application/pdf"
     )
-    filename = f"Sentiment_Report_{product_id}.pdf"
-    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Content-Length"] = str(len(pdf_bytes))
     return response
