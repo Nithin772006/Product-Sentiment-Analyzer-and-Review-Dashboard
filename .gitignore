@@ -103,6 +103,8 @@ geckodriver*
 # ─── Data & Exports ───────────────────────────────────────────────────────────
 *.csv
 *.json
+!frontend/package.json
+!frontend/package-lock.json
 data/
 exports/
 
