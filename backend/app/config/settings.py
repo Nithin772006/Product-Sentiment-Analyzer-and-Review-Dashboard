@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     rate_limit_requests: int = Field(default=100)
     rate_limit_window: int = Field(default=60)
 
+    @field_validator("debug", mode="before")
+    @classmethod
+    def validate_debug(cls, v: Any) -> bool:
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in {"release", "production", "prod"}:
+                return False
+        return v
+
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def validate_allowed_origins(cls, v: Any) -> List[str]:

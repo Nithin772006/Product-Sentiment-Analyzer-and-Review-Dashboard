@@ -26,7 +26,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
 # Token Configuration
-JWT_SECRET = getattr(get_settings(), "jwt_secret", "fallback_secret_key_change_me_in_prod")
+JWT_SECRET = get_settings().secret_key
 JWT_ALGORITHM = "HS256"
 TOKEN_EXPIRE_MINUTES = 600
 

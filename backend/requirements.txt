@@ -13,6 +13,7 @@ pydantic-settings==2.3.0
 
 # ─── Environment Variables ────────────────────────────────────────────────────
 python-dotenv==1.0.1
+PyJWT==2.8.0
 
 # ─── Web Scraping ─────────────────────────────────────────────────────────────
 beautifulsoup4==4.12.3

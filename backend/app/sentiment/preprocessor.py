@@ -18,15 +18,31 @@ from app.utils.logger import logger
 
 # ── Ensure NLTK resources are downloaded ─────────────────────────────────────
 # Using quiet mode to prevent console clutter on startup
-try:
-    logger.debug("Downloading NLTK resources...")
-    nltk.download("punkt", quiet=True)
-    nltk.download("stopwords", quiet=True)
-    nltk.download("wordnet", quiet=True)
-    nltk.download("omw-1.4", quiet=True)
-    nltk.download("averaged_perceptron_tagger", quiet=True)
-except Exception as e:
-    logger.warning("Failed to download some NLTK resources, using defaults: {exc}", exc=e)
+def _ensure_nltk_resource(resource_path: str, package_name: str) -> None:
+    try:
+        nltk.data.find(resource_path)
+    except LookupError:
+        try:
+            logger.debug("Downloading missing NLTK resource: {name}", name=package_name)
+            nltk.download(package_name, quiet=True)
+        except Exception as exc:
+            logger.warning(
+                "Failed to download NLTK resource {name}: {exc}",
+                name=package_name,
+                exc=exc,
+            )
+
+
+for resource_path, package_name in (
+    ("tokenizers/punkt", "punkt"),
+    ("tokenizers/punkt_tab", "punkt_tab"),
+    ("corpora/stopwords", "stopwords"),
+    ("corpora/wordnet", "wordnet"),
+    ("corpora/omw-1.4", "omw-1.4"),
+    ("taggers/averaged_perceptron_tagger", "averaged_perceptron_tagger"),
+    ("taggers/averaged_perceptron_tagger_eng", "averaged_perceptron_tagger_eng"),
+):
+    _ensure_nltk_resource(resource_path, package_name)
 
 
 class TextPreprocessor:
