@@ -21,7 +21,7 @@ from app.utils.logger import logger
 def _ensure_nltk_resource(resource_path: str, package_name: str) -> None:
     try:
         nltk.data.find(resource_path)
-    except LookupError:
+    except (LookupError, OSError):
         try:
             logger.debug("Downloading missing NLTK resource: {name}", name=package_name)
             nltk.download(package_name, quiet=True)
