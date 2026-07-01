@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 # Download NLTK data required by TextBlob / VADER
 RUN python -c "import nltk; nltk.download('punkt'); nltk.download('averaged_perceptron_tagger')"
 
+# Install Playwright browsers and dependencies
+RUN playwright install --with-deps chromium
+
 # Copy application source
 COPY . .
 
