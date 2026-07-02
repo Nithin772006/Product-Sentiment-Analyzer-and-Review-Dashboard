@@ -150,6 +150,11 @@ export default function ProductPage() {
               {product.source}
             </span>
             <span className="text-xs text-[#8892b0] font-medium">{product.brand || "Generic"}</span>
+            {product.price && (
+              <span className="text-xs text-[#34d399] font-bold bg-[#161b27] px-2 py-0.5 rounded border border-[rgba(255,255,255,0.05)]">
+                {product.price}
+              </span>
+            )}
           </div>
           <h1 className="text-xl md:text-2xl font-extrabold text-[#e8eaf6] tracking-tight leading-snug">
             {product.product_name}

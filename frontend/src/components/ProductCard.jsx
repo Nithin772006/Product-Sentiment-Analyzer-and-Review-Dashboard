@@ -36,6 +36,12 @@ export default function ProductCard({ product }) {
         <h3 className="text-base font-bold text-[#e8eaf6] line-clamp-2 leading-snug group-hover:text-[#3361ff] transition-colors duration-200">
           {product.product_name}
         </h3>
+        
+        {product.price && (
+          <div className="mt-2 inline-flex bg-[#161b27] px-2 py-1 rounded-md text-xs font-bold text-[#34d399] border border-[rgba(255,255,255,0.05)]">
+            {product.price}
+          </div>
+        )}
 
         {/* Metrics Row */}
         <div className="grid grid-cols-2 gap-2 mt-4 bg-[#161b27] p-2.5 rounded-xl border border-[rgba(255,255,255,0.03)] text-center">

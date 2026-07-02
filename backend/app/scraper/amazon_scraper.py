@@ -265,6 +265,15 @@ class AmazonScraper(BaseScraper):
                 category = clean_text(crumbs[0].text)
                 break
 
+        price = None
+        for p_sel in [".a-price .a-offscreen", "#priceblock_ourprice", "#priceblock_dealprice"]:
+            p_el = soup.select_one(p_sel)
+            if p_el:
+                price_text = clean_text(p_el.text)
+                if price_text:
+                    price = price_text
+                    break
+
         logger.info(f"[Amazon] Product info scraped: {product_name[:50]}")
         return {
             "product_name": product_name,
@@ -274,6 +283,7 @@ class AmazonScraper(BaseScraper):
             "product_url": url,
             "average_rating": avg_rating or 0.0,
             "total_reviews": total_reviews,
+            "price": price,
         }
 
     async def scrape_reviews(self, url: str, max_pages: int = 5) -> List[Dict]:
@@ -339,4 +349,56 @@ class AmazonScraper(BaseScraper):
             "product_url": url,
             "average_rating": 0.0,
             "total_reviews": 0,
+            "price": None,
         }
+
+    async def search_amazon(self, query: str, limit: int = 10) -> List[Dict]:
+        import urllib.parse
+        encoded_query = urllib.parse.quote(query)
+        search_url = f"https://www.amazon.in/s?k={encoded_query}"
+        logger.info(f"[Amazon] Searching for: {query}")
+        
+        soup = await self._fetch_soup(search_url)
+        if not soup:
+            logger.error("[Amazon] Failed to fetch search results.")
+            return []
+            
+        results = []
+        items = soup.select("div[data-component-type='s-search-result']")
+        for item in items:
+            if len(results) >= limit:
+                break
+                
+            title_el = item.select_one("h2 a span")
+            link_el = item.select_one("h2 a")
+            price_whole_el = item.select_one(".a-price-whole")
+            price_sym_el = item.select_one(".a-price-symbol")
+            img_el = item.select_one(".s-image")
+            
+            if not title_el or not link_el:
+                continue
+                
+            title = clean_text(title_el.text)
+            url_path = link_el.get("href", "")
+            if url_path.startswith("/"):
+                product_url = f"https://www.amazon.in{url_path}"
+            else:
+                product_url = url_path
+                
+            price = None
+            if price_whole_el and price_sym_el:
+                price = f"{clean_text(price_sym_el.text)}{clean_text(price_whole_el.text)}"
+            
+            thumbnail = img_el.get("src") if img_el else None
+            asin = item.get("data-asin")
+            
+            results.append({
+                "product_name": title,
+                "product_url": product_url,
+                "price": price,
+                "thumbnail": thumbnail,
+                "asin": asin,
+                "source": "amazon"
+            })
+            
+        return results

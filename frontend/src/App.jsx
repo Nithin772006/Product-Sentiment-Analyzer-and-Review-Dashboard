@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import ProductPage from "./pages/ProductPage";
 import SearchPage from "./pages/SearchPage";
+import LiveSearchPage from "./pages/LiveSearchPage";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import Reports from "./pages/Reports";
@@ -12,6 +13,14 @@ import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 
 import { useEffect } from "react";
+
+// Apply saved theme on every page load
+const savedTheme = localStorage.getItem("theme") || "dark";
+if (savedTheme === "light") {
+  document.documentElement.classList.add("light");
+} else {
+  document.documentElement.classList.remove("light");
+}
 
 // Layout wrapper for all authenticated dashboard panels
 function DashboardLayout() {
@@ -63,7 +72,7 @@ function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen flex bg-[#0f1117] text-[#e8eaf6]">
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}>
       <Sidebar />
       <div className="flex-1 flex flex-col justify-between overflow-x-hidden">
         <main className="animate-fade-in flex-1">
@@ -88,6 +97,7 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/products/:id" element={<ProductPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/live-search" element={<LiveSearchPage />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/about" element={<About />} />

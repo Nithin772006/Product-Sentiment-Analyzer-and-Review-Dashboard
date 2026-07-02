@@ -3,8 +3,21 @@ import { FiSettings, FiVolume2, FiSun, FiMoon, FiGlobe } from "react-icons/fi";
 
 export default function Settings() {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
-  const [soundEnabled, setSoundEnabled] = useState(localStorage.getItem("soundEnabled") === "true");
-  const [autoExport, setAutoExport] = useState(localStorage.getItem("autoExport") === "true");
+  const [soundEnabled, setSoundEnabled] = useState(
+    localStorage.getItem("soundEnabled") === "true"
+  );
+  const [autoExport, setAutoExport] = useState(
+    localStorage.getItem("autoExport") === "true"
+  );
+
+  // Sync HTML class on mount (in case navigated here after a reload)
+  useEffect(() => {
+    if (theme === "light") {
+      document.documentElement.classList.add("light");
+    } else {
+      document.documentElement.classList.remove("light");
+    }
+  }, []);
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
@@ -28,14 +41,28 @@ export default function Settings() {
     localStorage.setItem("autoExport", val);
   };
 
+  const cardStyle = {
+    backgroundColor: "var(--color-bg-card)",
+    borderColor: "var(--color-border)",
+    boxShadow: "var(--shadow-card)",
+  };
+
+  const dividerStyle = { borderColor: "var(--color-divider)" };
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 w-full flex-1 flex flex-col gap-6">
       {/* Title */}
-      <div className="border-b border-[rgba(255,255,255,0.05)] pb-4">
-        <h1 className="page-title text-[#e8eaf6] flex items-center gap-2">
+      <div
+        className="border-b pb-4 transition-colors duration-200"
+        style={dividerStyle}
+      >
+        <h1
+          className="page-title flex items-center gap-2"
+          style={{ color: "var(--color-text-primary)" }}
+        >
           <FiSettings className="text-[#3361ff]" /> Application Settings
         </h1>
-        <p className="text-sm text-[#8892b0] mt-1">
+        <p className="text-sm mt-1" style={{ color: "var(--color-text-muted)" }}>
           Customize display layout preferences, notification sound triggers, and default export criteria.
         </p>
       </div>
@@ -43,34 +70,60 @@ export default function Settings() {
       {/* Grid panels */}
       <div className="flex flex-col gap-6 mt-2">
         {/* Theme Settings Card */}
-        <div className="card bg-[#161b27] border-[rgba(255,255,255,0.06)] p-6">
-          <h3 className="section-title text-[#e8eaf6] mb-3 flex items-center gap-2">
+        <div
+          className="rounded-2xl border p-6 transition-all duration-200"
+          style={cardStyle}
+        >
+          <h3
+            className="section-title mb-3 flex items-center gap-2"
+            style={{ color: "var(--color-text-primary)" }}
+          >
             <FiSun className="text-[#f59e0b]" /> Theme Layout Mode
           </h3>
-          <p className="text-xs text-[#8892b0] mb-4">
-            Select a interface theme preference for the analytics portal.
+          <p className="text-xs mb-4" style={{ color: "var(--color-text-muted)" }}>
+            Select an interface theme preference for the analytics portal.
           </p>
 
           <div className="flex gap-4">
+            {/* Dark mode button */}
             <button
               onClick={() => handleThemeChange("dark")}
-              className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold text-sm ${
+              className="flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold text-sm transition-all duration-200"
+              style={
                 theme === "dark"
-                  ? "border-[#3361ff] bg-[#3361ff]/10 text-white"
-                  : "border-[rgba(255,255,255,0.08)] bg-[#1c2333] text-[#8892b0] hover:text-[#e8eaf6]"
-              }`}
+                  ? {
+                      borderColor: "#3361ff",
+                      backgroundColor: "rgba(51,97,255,0.12)",
+                      color: "var(--color-text-primary)",
+                    }
+                  : {
+                      borderColor: "var(--color-border)",
+                      backgroundColor: "var(--color-bg-card-hover)",
+                      color: "var(--color-text-muted)",
+                    }
+              }
             >
               <FiMoon className="text-2xl" />
               <span>Sleek Dark Mode (Default)</span>
             </button>
 
+            {/* Light mode button */}
             <button
               onClick={() => handleThemeChange("light")}
-              className={`flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold text-sm ${
+              className="flex-1 p-4 rounded-xl border flex flex-col items-center gap-2 font-bold text-sm transition-all duration-200"
+              style={
                 theme === "light"
-                  ? "border-[#3361ff] bg-[#3361ff]/10 text-[#161b27]"
-                  : "border-[rgba(255,255,255,0.08)] bg-[#1c2333] text-[#8892b0] hover:text-[#e8eaf6]"
-              }`}
+                  ? {
+                      borderColor: "#3361ff",
+                      backgroundColor: "rgba(51,97,255,0.12)",
+                      color: "var(--color-text-primary)",
+                    }
+                  : {
+                      borderColor: "var(--color-border)",
+                      backgroundColor: "var(--color-bg-card-hover)",
+                      color: "var(--color-text-muted)",
+                    }
+              }
             >
               <FiSun className="text-2xl" />
               <span>Classic Light Mode</span>
@@ -79,18 +132,34 @@ export default function Settings() {
         </div>
 
         {/* Sound Notifications Settings */}
-        <div className="card bg-[#161b27] border-[rgba(255,255,255,0.06)] p-6 flex flex-col gap-4">
-          <h3 className="section-title text-[#e8eaf6] flex items-center gap-2">
+        <div
+          className="rounded-2xl border p-6 flex flex-col gap-4 transition-all duration-200"
+          style={cardStyle}
+        >
+          <h3
+            className="section-title flex items-center gap-2"
+            style={{ color: "var(--color-text-primary)" }}
+          >
             <FiVolume2 className="text-[#3361ff]" /> Notification Triggers
           </h3>
-          <p className="text-xs text-[#8892b0] -mt-2">
+          <p className="text-xs -mt-2" style={{ color: "var(--color-text-muted)" }}>
             Control visual toasts and audio heartbeats during scraping completions.
           </p>
 
-          <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.05)] pt-4">
+          <div
+            className="flex items-center justify-between border-t pt-4 transition-colors duration-200"
+            style={dividerStyle}
+          >
             <div>
-              <span className="text-xs font-semibold text-[#e8eaf6] block">Enable Audio Alerts</span>
-              <span className="text-[10px] text-[#8892b0]">Play subtle audio beats when jobs complete</span>
+              <span
+                className="text-xs font-semibold block"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                Enable Audio Alerts
+              </span>
+              <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                Play subtle audio beats when jobs complete
+              </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -99,24 +168,46 @@ export default function Settings() {
                 onChange={handleSoundChange}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-[#1c2333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#8892b0] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3361ff] peer-checked:after:bg-white"></div>
+              <div
+                className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3361ff] peer-checked:after:bg-white"
+                style={{
+                  backgroundColor: "var(--color-bg-card-hover)",
+                  borderColor: "var(--color-border)",
+                }}
+              />
             </label>
           </div>
         </div>
 
         {/* Local Caching preferences */}
-        <div className="card bg-[#161b27] border-[rgba(255,255,255,0.06)] p-6 flex flex-col gap-4">
-          <h3 className="section-title text-[#e8eaf6] flex items-center gap-2">
+        <div
+          className="rounded-2xl border p-6 flex flex-col gap-4 transition-all duration-200"
+          style={cardStyle}
+        >
+          <h3
+            className="section-title flex items-center gap-2"
+            style={{ color: "var(--color-text-primary)" }}
+          >
             <FiGlobe className="text-[#22c55e]" /> Preferences
           </h3>
-          <p className="text-xs text-[#8892b0] -mt-2">
+          <p className="text-xs -mt-2" style={{ color: "var(--color-text-muted)" }}>
             Optimize database lookups and file downloads.
           </p>
 
-          <div className="flex items-center justify-between border-t border-[rgba(255,255,255,0.05)] pt-4">
+          <div
+            className="flex items-center justify-between border-t pt-4 transition-colors duration-200"
+            style={dividerStyle}
+          >
             <div>
-              <span className="text-xs font-semibold text-[#e8eaf6] block">Autoload PDF Downloads</span>
-              <span className="text-[10px] text-[#8892b0]">Open reports in secondary tabs immediately on generation</span>
+              <span
+                className="text-xs font-semibold block"
+                style={{ color: "var(--color-text-primary)" }}
+              >
+                Autoload PDF Downloads
+              </span>
+              <span className="text-[10px]" style={{ color: "var(--color-text-muted)" }}>
+                Open reports in secondary tabs immediately on generation
+              </span>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
@@ -125,7 +216,13 @@ export default function Settings() {
                 onChange={handleAutoExportChange}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-[#1c2333] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-[#8892b0] after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3361ff] peer-checked:after:bg-white"></div>
+              <div
+                className="w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#3361ff] peer-checked:after:bg-white"
+                style={{
+                  backgroundColor: "var(--color-bg-card-hover)",
+                  borderColor: "var(--color-border)",
+                }}
+              />
             </label>
           </div>
         </div>

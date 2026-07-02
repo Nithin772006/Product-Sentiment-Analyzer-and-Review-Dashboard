@@ -13,6 +13,30 @@ from app.utils.bson import format_response
 router = APIRouter(prefix="/search", tags=["search"])
 
 
+@router.get("/amazon")
+async def search_amazon_live(
+    q: str = Query(..., min_length=1, description="Keyword search for Amazon products"),
+    limit: int = Query(10, ge=1, le=20)
+) -> dict:
+    """
+    Perform a live web search on Amazon using the given keyword query.
+    Returns a list of candidate products (with title, price, thumbnail, URL).
+    """
+    from app.scraper.amazon_scraper import AmazonScraper
+    
+    try:
+        scraper = AmazonScraper()
+        results = await scraper.search_amazon(q, limit=limit)
+        return format_response(
+            success=True,
+            message=f"Found {len(results)} live results for '{q}'",
+            data=results
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Amazon live search failed: {str(exc)}")
+
+
+
 @router.get("")
 async def search_products(
     q: str = Query(..., min_length=1, description="Product name, brand search query, or product URL"),

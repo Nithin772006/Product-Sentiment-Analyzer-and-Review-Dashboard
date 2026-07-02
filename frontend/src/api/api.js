@@ -63,6 +63,10 @@ export const apiService = {
   searchProducts: (q, skip = 0, limit = 20) => 
     api.get("/search", { params: { q, skip, limit } }),
 
+  searchAmazonLive: (q, limit = 10) =>
+    api.get("/search/amazon", { params: { q, limit } }),
+
+
   // ── Products CRUD ──────────────────────────────────────────────────────────
   getProducts: (skip = 0, limit = 12, sortBy = "created_at", order = "desc") =>
     api.get("/products", { params: { skip, limit, sort_by: sortBy, order } }),
