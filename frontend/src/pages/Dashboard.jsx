@@ -29,43 +29,21 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboardData() {
       try {
-        // Fetch all products (limit to 100 for stats compilation)
-        const productsResponse = await apiService.getProducts(0, 100, "created_at", "desc");
-        const list = productsResponse.data || [];
-        setRecentProducts(list.slice(0, 5)); // Keep top 5 for recent listings
+        // Fetch only the 5 most recent products for the list
+        const productsResponse = await apiService.getProducts(0, 5, "created_at", "desc");
+        setRecentProducts(productsResponse.data || []);
 
-        // Compile aggregate dashboard numbers
-        let totalRev = 0;
-        let sumRating = 0.0;
-        let posCount = 0;
-        let negCount = 0;
-        let neuCount = 0;
-
-        for (const prod of list) {
-          totalRev += prod.total_reviews || 0;
-          sumRating += prod.average_rating || 0.0;
-          
-          // Fetch analytics summary for each product to aggregate sentiment counts
-          try {
-            const analytics = await apiService.getProductAnalytics(prod.id);
-            const summary = analytics.data?.sentiment_summary || {};
-            posCount += summary.positive_count || 0;
-            negCount += summary.negative_count || 0;
-            neuCount += summary.neutral_count || 0;
-          } catch (e) {
-            // fallback if single product fails
-          }
-        }
-
-        const averageRating = list.length > 0 ? sumRating / list.length : 0.0;
+        // Fetch pre-compiled aggregate dashboard numbers from the backend
+        const summaryResponse = await apiService.getDashboardSummary();
+        const summary = summaryResponse.data || {};
 
         setStats({
-          totalProducts: list.length,
-          totalReviews: totalRev,
-          avgRating: averageRating,
-          positiveReviews: posCount,
-          negativeReviews: negCount,
-          neutralReviews: neuCount,
+          totalProducts: summary.total_products || 0,
+          totalReviews: summary.total_reviews || 0,
+          avgRating: summary.average_rating || 0.0,
+          positiveReviews: summary.sentiment_counts?.positive || 0,
+          negativeReviews: summary.sentiment_counts?.negative || 0,
+          neutralReviews: summary.sentiment_counts?.neutral || 0,
         });
 
       } catch (err) {
