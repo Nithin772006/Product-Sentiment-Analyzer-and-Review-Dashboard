@@ -6,9 +6,7 @@ import {
   FiSmile,
   FiFrown,
   FiMeh,
-  FiStar,
   FiClock,
-  FiSearch,
 } from "react-icons/fi";
 import apiService from "../api/api";
 import StatsCard from "../components/StatsCard";
@@ -18,7 +16,6 @@ export default function Dashboard() {
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalReviews: 0,
-    avgRating: 0.0,
     positiveReviews: 0,
     negativeReviews: 0,
     neutralReviews: 0,
@@ -40,7 +37,6 @@ export default function Dashboard() {
         setStats({
           totalProducts: summary.total_products || 0,
           totalReviews: summary.total_reviews || 0,
-          avgRating: summary.average_rating || 0.0,
           positiveReviews: summary.sentiment_counts?.positive || 0,
           negativeReviews: summary.sentiment_counts?.negative || 0,
           neutralReviews: summary.sentiment_counts?.neutral || 0,
@@ -86,7 +82,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <StatsCard
           title="Total Products"
           value={stats.totalProducts}
@@ -123,13 +119,6 @@ export default function Dashboard() {
           icon={<FiMeh className="text-[#f59e0b]" />}
           color="orange"
           description="Classification neutral"
-        />
-        <StatsCard
-          title="Average Rating"
-          value={stats.avgRating.toFixed(2)}
-          icon={<FiStar className="text-[#f59e0b]" />}
-          color="orange"
-          description="System-wide average"
         />
       </div>
 

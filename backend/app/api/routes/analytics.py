@@ -100,9 +100,9 @@ async def get_dashboard_summary() -> dict:
     sentiment_repo = SentimentRepository()
 
     try:
-        # Simple counts
-        _, total_products = await product_repo.find(limit=1)
-        _, total_reviews = await review_repo.find(limit=1)
+        # Direct counts — fast and reliable
+        total_products = await product_repo._col.count_documents({})
+        total_reviews = await review_repo._col.count_documents({})
 
         # Scraped counts (today vs this week)
         now_utc = datetime.now(tz=timezone.utc)
@@ -112,51 +112,11 @@ async def get_dashboard_summary() -> dict:
         scraped_today = await product_repo._col.count_documents({"created_at": {"$gte": today_start}})
         scraped_this_week = await product_repo._col.count_documents({"created_at": {"$gte": week_start}})
 
-        # Global Sentiment counts
+
+        # Global Sentiment counts — directly from sentiments collection
         pos_count = await sentiment_repo._col.count_documents({"sentiment": "positive"})
         neg_count = await sentiment_repo._col.count_documents({"sentiment": "negative"})
         neu_count = await sentiment_repo._col.count_documents({"sentiment": "neutral"})
-
-        # Average system rating
-        avg_rating_cursor = product_repo._col.aggregate([
-            {"$group": {"_id": None, "avg": {"$avg": "$average_rating"}}}
-        ])
-        avg_rating_res = await avg_rating_cursor.to_list(length=1)
-        avg_rating = avg_rating_res[0]["avg"] if avg_rating_res else 0.0
-
-        # Highlights
-        most_reviewed = await product_repo._col.find().sort("total_reviews", -1).to_list(length=1)
-        
-        # Most Positive / Most Negative based on aggregation pipeline
-        sentiment_ratio_pipeline = [
-            {"$group": {
-                "_id": "$product_id",
-                "total": {"$sum": 1},
-                "positive": {"$sum": {"$cond": [{"$eq": ["$sentiment", "positive"]}, 1, 0]}},
-                "negative": {"$sum": {"$cond": [{"$eq": ["$sentiment", "negative"]}, 1, 0]}}
-            }},
-            {"$project": {
-                "product_id": "$_id",
-                "total": 1,
-                "pos_ratio": {"$cond": [{"$gt": ["$total", 0]}, {"$divide": ["$positive", "$total"]}, 0]},
-                "neg_ratio": {"$cond": [{"$gt": ["$total", 0]}, {"$divide": ["$negative", "$total"]}, 0]}
-            }}
-        ]
-        ratios_cursor = sentiment_repo._col.aggregate(sentiment_ratio_pipeline)
-        ratios = await ratios_cursor.to_list(length=1000)
-
-        most_pos_prod = None
-        most_neg_prod = None
-
-        if ratios:
-            ratios_sorted_pos = sorted(ratios, key=lambda x: x["pos_ratio"], reverse=True)
-            ratios_sorted_neg = sorted(ratios, key=lambda x: x["neg_ratio"], reverse=True)
-            
-            most_pos_id = ratios_sorted_pos[0]["product_id"]
-            most_neg_id = ratios_sorted_neg[0]["product_id"]
-            
-            most_pos_prod = await product_repo.get_by_id(most_pos_id)
-            most_neg_prod = await product_repo.get_by_id(most_neg_id)
 
         summary_data = {
             "total_products": total_products,
@@ -166,14 +126,8 @@ async def get_dashboard_summary() -> dict:
                 "negative": neg_count,
                 "neutral": neu_count,
             },
-            "average_rating": round(avg_rating, 2),
             "scraped_today": scraped_today,
             "scraped_this_week": scraped_this_week,
-            "highlights": {
-                "most_reviewed": most_reviewed[0] if most_reviewed else None,
-                "most_positive": most_pos_prod,
-                "most_negative": most_neg_prod,
-            }
         }
 
         return format_response(
