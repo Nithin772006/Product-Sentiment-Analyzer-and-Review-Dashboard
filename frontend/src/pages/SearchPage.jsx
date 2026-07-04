@@ -65,10 +65,12 @@ export default function SearchPage() {
 
       {/* Grid listing */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="card animate-pulse h-48 bg-[#1c2333] rounded-xl"></div>
-          ))}
+        <div className="flex flex-col items-center justify-center py-16 gap-4">
+          <Loader />
+          <h3 className="text-lg font-bold text-[#e8eaf6]">Searching & Extracting...</h3>
+          <p className="text-xs text-[#8892b0] max-w-md text-center">
+            Looking up the product. If not found locally, we will scrape Amazon for reviews and run ML sentiment models. This may take 1-2 minutes.
+          </p>
         </div>
       ) : products.length === 0 ? (
         <div className="card text-center py-16 flex flex-col items-center justify-center gap-4">

@@ -37,6 +37,43 @@ async def search_amazon_live(
 
 
 
+async def _scrape_and_store_product(url: str, source: str, repo: ProductRepository) -> dict:
+    from app.scraper.scraper_service import ScraperService
+    from app.repositories.review_repository import ReviewRepository
+    from app.sentiment.processor import SentimentBatchProcessor
+
+    scraper_service = ScraperService()
+    scraped_data = await scraper_service.scrape_product(url, max_pages=3)
+    product_info = scraped_data["product_info"]
+    reviews = scraped_data["reviews"]
+
+    new_product = await repo.create(product_info)
+    product_id = new_product["id"]
+
+    if reviews:
+        review_repo = ReviewRepository()
+        db_reviews = []
+        for r in reviews:
+            db_reviews.append({
+                "product_id": product_id,
+                "reviewer": r["reviewer"],
+                "rating": r["rating"],
+                "review_text": r["review"],
+                "review_date": r["review_date"],
+                "helpful_votes": 0,
+                "verified_purchase": True,
+                "source": source,
+                "review_url": r["url"],
+                "sentiment_processed": False,
+            })
+        await review_repo.insert_many(db_reviews)
+
+        processor = SentimentBatchProcessor()
+        await processor.process_product_reviews(product_id)
+
+    return await repo.get_by_id(product_id)
+
+
 @router.get("")
 async def search_products(
     q: str = Query(..., min_length=1, description="Product name, brand search query, or product URL"),
@@ -81,41 +118,7 @@ async def search_products(
                     data=[existing]
                 )
 
-            # Trigger fresh scraper run
-            from app.scraper.scraper_service import ScraperService
-            from app.repositories.review_repository import ReviewRepository
-            from app.sentiment.processor import SentimentBatchProcessor
-
-            scraper_service = ScraperService()
-            scraped_data = await scraper_service.scrape_product(s, max_pages=3)
-            product_info = scraped_data["product_info"]
-            reviews = scraped_data["reviews"]
-
-            new_product = await repo.create(product_info)
-            product_id = new_product["id"]
-
-            if reviews:
-                review_repo = ReviewRepository()
-                db_reviews = []
-                for r in reviews:
-                    db_reviews.append({
-                        "product_id": product_id,
-                        "reviewer": r["reviewer"],
-                        "rating": r["rating"],
-                        "review_text": r["review"],
-                        "review_date": r["review_date"],
-                        "helpful_votes": 0,
-                        "verified_purchase": True,
-                        "source": source,
-                        "review_url": r["url"],
-                        "sentiment_processed": False,
-                    })
-                await review_repo.insert_many(db_reviews)
-
-                processor = SentimentBatchProcessor()
-                await processor.process_product_reviews(product_id)
-
-            final_prod = await repo.get_by_id(product_id)
+            final_prod = await _scrape_and_store_product(s, source, repo)
             return format_response(
                 success=True,
                 message="Product scraped and added successfully from URL",
@@ -128,10 +131,45 @@ async def search_products(
     # Regular keyword search
     try:
         results = await repo.search_by_name(s, skip=skip, limit=limit)
+        if results:
+            return format_response(
+                success=True,
+                message=f"Found {len(results)} product(s) matching '{s}'",
+                data=results
+            )
+            
+        # If no results found in local database, perform live Amazon search and scrape top result
+        from app.scraper.amazon_scraper import AmazonScraper
+        scraper = AmazonScraper()
+        live_results = await scraper.search_amazon(s, limit=1)
+        
+        if live_results and len(live_results) > 0:
+            top_result = live_results[0]
+            top_url = top_result["product_url"]
+            source = top_result.get("source", "amazon")
+            
+            # Check if this URL exists in DB
+            existing = await repo.get_by_url(top_url, source)
+            if existing and (existing.get("product_name") != "Unknown Product" and existing.get("total_reviews", 0) > 0):
+                return format_response(
+                    success=True,
+                    message=f"Found product via live search (cached): '{s}'",
+                    data=[existing]
+                )
+                
+            # Otherwise scrape the top product
+            final_prod = await _scrape_and_store_product(top_url, source, repo)
+            if final_prod:
+                return format_response(
+                    success=True,
+                    message=f"Product scraped and added successfully from keyword '{s}'",
+                    data=[final_prod]
+                )
+
         return format_response(
             success=True,
-            message=f"Found {len(results)} product(s) matching '{s}'",
-            data=results
+            message=f"No product found or scraped for '{s}'",
+            data=[]
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(exc)}")
