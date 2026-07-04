@@ -24,7 +24,7 @@ export default function LiveSearchPage() {
       const response = await apiService.searchAmazonLive(query.trim(), 12);
       setResults(response.data || []);
       if (response.data?.length === 0) {
-        setErrorMsg("No products found on Amazon for that keyword.");
+        setErrorMsg("No Amazon or database products found for that keyword.");
       }
     } catch (err) {
       console.error("Live search failed", err);
@@ -34,7 +34,12 @@ export default function LiveSearchPage() {
     }
   };
 
-  const handleAnalyze = async (productUrl) => {
+  const handleAnalyze = async (productUrl, productId) => {
+    if (productId) {
+      navigate(`/products/${productId}`);
+      return;
+    }
+
     setIsScraping(true);
     setErrorMsg("");
     try {
@@ -115,6 +120,11 @@ export default function LiveSearchPage() {
                   <h3 className="text-sm font-semibold text-[#e8eaf6] line-clamp-3 leading-snug">
                     {product.product_name}
                   </h3>
+                  {product.is_cached && (
+                    <div className="mt-2 inline-flex bg-blue-500/10 px-2 py-1 rounded-md text-[10px] font-bold text-blue-300 border border-blue-500/20">
+                      Database Match
+                    </div>
+                  )}
                   {product.price && (
                     <div className="mt-2 inline-flex bg-[#161b27] px-2 py-1 rounded-md text-xs font-bold text-[#34d399] border border-[rgba(255,255,255,0.05)]">
                       {product.price}
@@ -123,7 +133,7 @@ export default function LiveSearchPage() {
                 </div>
               </div>
               <button
-                onClick={() => handleAnalyze(product.product_url)}
+                onClick={() => handleAnalyze(product.product_url, product.id)}
                 className="w-full btn-primary bg-[#3361ff] hover:bg-[#254bdb] py-2.5 flex items-center justify-center gap-2 mt-auto"
               >
                 <FiActivity /> Analyze Sentiment

@@ -7,7 +7,7 @@ Uses BaseScraper._fetch_soup() which delegates to ScraperManager (5-strategy cas
 from __future__ import annotations
 import re
 from typing import Dict, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, unquote, urljoin, urlparse
 from bs4 import BeautifulSoup
 
 from app.scraper.base_scraper import BaseScraper
@@ -226,6 +226,24 @@ class AmazonScraper(BaseScraper):
             f"?pageNumber={page_num}&sortBy=recent"
         )
 
+    def _canonical_product_url(self, url: str, asin: Optional[str] = None) -> Optional[str]:
+        if not url:
+            return None
+
+        decoded_url = unquote(url)
+        parsed = urlparse(decoded_url)
+
+        if parsed.path.startswith(("/sspa/", "/gp/slredirect/")):
+            redirected = parse_qs(parsed.query).get("url", [None])[0]
+            if redirected:
+                decoded_url = urljoin("https://www.amazon.in", unquote(redirected))
+
+        detected_asin = asin or self._extract_asin(decoded_url)
+        if not detected_asin:
+            return None
+
+        return f"https://www.amazon.in/dp/{detected_asin}"
+
     async def scrape_product_info(self, url: str) -> Dict:
         logger.info(f"[Amazon] Fetching product info: {url[:80]}")
         soup = await self._fetch_soup(url)
@@ -355,7 +373,7 @@ class AmazonScraper(BaseScraper):
     async def search_amazon(self, query: str, limit: int = 10) -> List[Dict]:
         import urllib.parse
         encoded_query = urllib.parse.quote(query)
-        search_url = f"https://www.amazon.in/s?k={encoded_query}"
+        search_url = f"https://www.amazon.in/s?k={encoded_query}&i=electronics"
         logger.info(f"[Amazon] Searching for: {query}")
         
         soup = await self._fetch_soup(search_url)
@@ -364,33 +382,50 @@ class AmazonScraper(BaseScraper):
             return []
             
         results = []
-        items = soup.select("div[data-component-type='s-search-result']")
+        seen_asins = set()
+        items = soup.select("div[data-component-type='s-search-result'], div[data-asin][data-component-id]")
         for item in items:
             if len(results) >= limit:
                 break
-                
-            title_el = item.select_one("h2 a span")
-            link_el = item.select_one("h2 a")
+
+            asin = (item.get("data-asin") or "").strip().upper()
+            if not asin or asin in seen_asins:
+                continue
+
+            title_el = item.select_one(
+                "h2 a span, h2 span, a.a-link-normal span.a-text-normal, "
+                "[data-cy='title-recipe'] span, .s-title-instructions-style span"
+            )
+            link_el = item.select_one(
+                "h2 a[href], a.a-link-normal[href*='/dp/'], "
+                "a.a-link-normal[href*='/gp/product/'], a[href*='/sspa/click']"
+            )
+            price_el = item.select_one(".a-price .a-offscreen")
             price_whole_el = item.select_one(".a-price-whole")
             price_sym_el = item.select_one(".a-price-symbol")
             img_el = item.select_one(".s-image")
             
-            if not title_el or not link_el:
+            if not title_el:
                 continue
                 
-            title = clean_text(title_el.text)
-            url_path = link_el.get("href", "")
-            if url_path.startswith("/"):
-                product_url = f"https://www.amazon.in{url_path}"
-            else:
-                product_url = url_path
-                
+            title = clean_text(title_el.get_text(" "))
+            if not title:
+                continue
+
+            url_path = link_el.get("href", "") if link_el else f"/dp/{asin}"
+            product_url = urljoin("https://www.amazon.in", url_path)
+            product_url = self._canonical_product_url(product_url, asin)
+            if not product_url:
+                continue
+
             price = None
-            if price_whole_el and price_sym_el:
+            if price_el:
+                price = clean_text(price_el.get_text(" "))
+            elif price_whole_el and price_sym_el:
                 price = f"{clean_text(price_sym_el.text)}{clean_text(price_whole_el.text)}"
             
             thumbnail = img_el.get("src") if img_el else None
-            asin = item.get("data-asin")
+            seen_asins.add(asin)
             
             results.append({
                 "product_name": title,

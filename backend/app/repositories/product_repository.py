@@ -17,6 +17,7 @@ query methods:
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -134,6 +135,83 @@ class ProductRepository(BaseRepository):
         )
 
     # ── Ranked queries ─────────────────────────────────────────────────────────
+
+    async def search_similar(
+        self,
+        name: str,
+        skip: int = 0,
+        limit: int = 20,
+    ) -> tuple[list[dict], int]:
+        """
+        Ranked partial-word search over product metadata.
+
+        Handles incomplete multi-word searches such as "oppo ren" or
+        "reno 14" and returns close database matches first.
+        """
+        limit = min(limit, 100)
+        query_text = " ".join(name.strip().split()).lower()
+        tokens = [t for t in re.findall(r"[a-zA-Z0-9]+", query_text) if t]
+        if not tokens:
+            return [], 0
+
+        fields = ["product_name", "brand", "category", "source"]
+
+        def token_clause(token: str) -> dict:
+            regex = {"$regex": re.escape(token), "$options": "i"}
+            return {"$or": [{field: regex} for field in fields]}
+
+        strict_query = {"$and": [token_clause(token) for token in tokens]}
+        loose_query = {"$or": [token_clause(token) for token in tokens]}
+
+        cursor = self._col.find(strict_query).limit(300)
+        docs = await cursor.to_list(length=300)
+        if not docs:
+            cursor = self._col.find(loose_query).limit(300)
+            docs = await cursor.to_list(length=300)
+
+        def score(doc: dict) -> tuple:
+            product_name = str(doc.get("product_name") or "").lower()
+            brand = str(doc.get("brand") or "").lower()
+            category = str(doc.get("category") or "").lower()
+            source = str(doc.get("source") or "").lower()
+            combined = f"{product_name} {brand} {category} {source}"
+
+            value = 0
+            if product_name == query_text:
+                value += 300
+            if product_name.startswith(query_text):
+                value += 180
+            if query_text in product_name:
+                value += 120
+
+            for token in tokens:
+                if product_name.startswith(token):
+                    value += 35
+                if token in product_name:
+                    value += 25
+                if brand.startswith(token):
+                    value += 18
+                if token in brand:
+                    value += 12
+                if token in category:
+                    value += 8
+                if token in combined:
+                    value += 5
+
+            updated_at = doc.get("updated_at")
+            updated_score = updated_at.timestamp() if isinstance(updated_at, datetime) else 0
+
+            return (
+                value,
+                doc.get("total_reviews") or 0,
+                doc.get("average_rating") or 0,
+                updated_score,
+            )
+
+        ranked = sorted(docs, key=score, reverse=True)
+        total = len(ranked)
+        page = ranked[skip: skip + limit]
+        return [_serialize(d) for d in page], total
 
     async def get_top_rated(
         self,

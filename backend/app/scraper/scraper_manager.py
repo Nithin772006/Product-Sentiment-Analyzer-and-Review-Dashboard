@@ -30,18 +30,20 @@ async def _try_persistent_profile(url: str, headless: bool = True) -> Optional[s
         PROFILE_DIR.mkdir(parents=True, exist_ok=True)
         async with async_playwright() as pw:
             stealth_obj = Stealth()
-            context = await pw.chromium.launch_persistent_context(
-                user_data_dir=str(PROFILE_DIR),
-                channel="chrome",
-                headless=False,  # Force headed mode to bypass strict headless checks
-                viewport={"width": 1920, "height": 1080},
-                args=[
+            launch_options = {
+                "user_data_dir": str(PROFILE_DIR),
+                "headless": headless,
+                "viewport": {"width": 1920, "height": 1080},
+                "args": [
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",
                     "--disable-dev-shm-usage",
                 ],
-                java_script_enabled=True,
-            )
+                "java_script_enabled": True,
+            }
+            if not headless:
+                launch_options["channel"] = "chrome"
+            context = await pw.chromium.launch_persistent_context(**launch_options)
             page = await context.new_page()
             await stealth_obj.apply_stealth_async(page)
             await page.goto(url, timeout=35000, wait_until="domcontentloaded")
@@ -61,7 +63,7 @@ async def _try_playwright_stealth(url: str, headless: bool = True) -> Optional[s
     try:
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(
-                headless=False,  # Force headed mode
+                headless=headless,
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--no-sandbox",

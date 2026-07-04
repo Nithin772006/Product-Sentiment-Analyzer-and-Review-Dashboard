@@ -122,6 +122,17 @@ class TestAmazonScraper(unittest.TestCase):
         url = "https://www.amazon.in/some-product?pd_rd_i=B0DSKL9MQ8"
         self.assertEqual(scraper._extract_asin(url), "B0DSKL9MQ8")
 
+    def test_canonical_product_url_from_sponsored_search_link(self) -> None:
+        scraper = AmazonScraper()
+        url = (
+            "https://www.amazon.in/sspa/click?url=%2FiQOO-Neo-Storage%2Fdp%2FB0TEST1234"
+            "%2Fref%3Dsr_1_1"
+        )
+        self.assertEqual(
+            scraper._canonical_product_url(url),
+            "https://www.amazon.in/dp/B0TEST1234",
+        )
+
     def test_review_text_removes_amazon_ui_markers(self) -> None:
         html = """
         <div data-hook="review">

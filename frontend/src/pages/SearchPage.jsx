@@ -53,7 +53,7 @@ export default function SearchPage() {
           <FiSearch className="text-[#3361ff]" /> Search Results
         </h1>
         <p className="text-xs text-[#8892b0] mt-1">
-          Showing matched database entries for query: <span className="font-semibold text-[#e8eaf6]">"{query}"</span>
+          Showing similar products from your database for: <span className="font-semibold text-[#e8eaf6]">"{query}"</span>
         </p>
       </div>
 
@@ -67,9 +67,9 @@ export default function SearchPage() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-4">
           <Loader />
-          <h3 className="text-lg font-bold text-[#e8eaf6]">Searching & Extracting...</h3>
+          <h3 className="text-lg font-bold text-[#e8eaf6]">Searching Products...</h3>
           <p className="text-xs text-[#8892b0] max-w-md text-center">
-            Looking up the product. If not found locally, we will scrape Amazon for reviews and run ML sentiment models. This may take 1-2 minutes.
+            Checking saved products and ranking the closest database matches.
           </p>
         </div>
       ) : products.length === 0 ? (
@@ -84,7 +84,7 @@ export default function SearchPage() {
               Want to scrape this product?
             </span>
             <p className="text-[11px] text-[#8892b0] leading-relaxed">
-              Copy the product URL directly from <span className="font-semibold">Amazon</span> or <span className="font-semibold">Flipkart</span>, paste it in the search bar on our home page, and we will extract the reviews immediately!
+              Paste the exact <span className="font-semibold">Amazon</span> or <span className="font-semibold">Flipkart</span> product URL on the home page to import it directly.
             </p>
           </div>
           <Link to="/" className="btn-primary mt-4">

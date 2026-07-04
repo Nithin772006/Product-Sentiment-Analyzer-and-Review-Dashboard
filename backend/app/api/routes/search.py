@@ -27,9 +27,26 @@ async def search_amazon_live(
     try:
         scraper = AmazonScraper()
         results = await scraper.search_amazon(q, limit=limit)
+        if not results:
+            repo = ProductRepository()
+            db_results, _ = await repo.search_similar(q, limit=limit)
+            results = [
+                {
+                    "product_name": product.get("product_name"),
+                    "product_url": product.get("product_url"),
+                    "price": product.get("price"),
+                    "thumbnail": product.get("thumbnail"),
+                    "asin": None,
+                    "source": product.get("source", "amazon"),
+                    "id": product.get("id"),
+                    "is_cached": True,
+                }
+                for product in db_results
+                if product.get("product_url")
+            ]
         return format_response(
             success=True,
-            message=f"Found {len(results)} live results for '{q}'",
+            message=f"Found {len(results)} result(s) for '{q}'",
             data=results
         )
     except Exception as exc:
@@ -128,48 +145,26 @@ async def search_products(
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"URL search failed: {str(exc)}")
 
-    # Regular keyword search
+    # Regular keyword search: database only, ranked by similarity.
     try:
-        results = await repo.search_by_name(s, skip=skip, limit=limit)
+        results, total = await repo.search_similar(s, skip=skip, limit=limit)
         if results:
             return format_response(
                 success=True,
-                message=f"Found {len(results)} product(s) matching '{s}'",
-                data=results
+                message=f"Found {len(results)} similar product(s) matching '{s}'",
+                data=results,
+                total=total,
+                page=(skip // limit) + 1,
+                limit=limit,
             )
-            
-        # If no results found in local database, perform live Amazon search and scrape top result
-        from app.scraper.amazon_scraper import AmazonScraper
-        scraper = AmazonScraper()
-        live_results = await scraper.search_amazon(s, limit=1)
-        
-        if live_results and len(live_results) > 0:
-            top_result = live_results[0]
-            top_url = top_result["product_url"]
-            source = top_result.get("source", "amazon")
-            
-            # Check if this URL exists in DB
-            existing = await repo.get_by_url(top_url, source)
-            if existing and (existing.get("product_name") != "Unknown Product" and existing.get("total_reviews", 0) > 0):
-                return format_response(
-                    success=True,
-                    message=f"Found product via live search (cached): '{s}'",
-                    data=[existing]
-                )
-                
-            # Otherwise scrape the top product
-            final_prod = await _scrape_and_store_product(top_url, source, repo)
-            if final_prod:
-                return format_response(
-                    success=True,
-                    message=f"Product scraped and added successfully from keyword '{s}'",
-                    data=[final_prod]
-                )
 
         return format_response(
             success=True,
-            message=f"No product found or scraped for '{s}'",
-            data=[]
+            message=f"No database product found for '{s}'",
+            data=[],
+            total=0,
+            page=(skip // limit) + 1,
+            limit=limit,
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(exc)}")
