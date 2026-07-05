@@ -32,7 +32,8 @@ tenacity>=8.3.0
 vaderSentiment==3.3.2
 textblob==0.18.0
 nltk==3.8.1
-scikit-learn==1.5.0
+# scikit-learn is intentionally omitted here because the local environment
+# cannot build it reliably; the evaluation module uses a built-in fallback.
 
 # ─── Data Processing & Exports ────────────────────────────────────────────────
 pandas==2.2.2
