@@ -140,7 +140,7 @@ npm install
    ```
 3. Run the development server with live reload:
    ```bash
-   uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
    ```
 4. Access interactive API documentation at:
    * **Swagger**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)

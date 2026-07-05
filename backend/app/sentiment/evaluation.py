@@ -2,7 +2,7 @@
 app/sentiment/evaluation.py
 ────────────────────────────
 Evaluates sentiment model predictions against true star ratings.
-Uses scikit-learn to calculate classification metrics (Accuracy, Precision, Recall, F1).
+Calculates classification metrics (Accuracy, Precision, Recall, F1).
 """
 
 from __future__ import annotations
@@ -124,7 +124,7 @@ class SentimentEvaluator:
         return {
             "accuracy": round(acc, 4),
             "report": report,
-            "confusion_matrix": matrix.tolist(),
+            "confusion_matrix": matrix,
             "metrics": {
                 "positive": report.get("positive", {}),
                 "negative": report.get("negative", {}),
